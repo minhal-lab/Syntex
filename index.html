@@ -56,6 +56,8 @@ async function callAnthropic(prompt) {
     })
   });
   const d = await r.json();
+  if (d.error) throw new Error(d.error.message || 'API error');
+  if (!r.ok) throw new Error(`API returned ${r.status}`);
   return d.content?.[0]?.text || '';
 }
 
@@ -178,7 +180,7 @@ function AppPage({ trialMs, subscribed, setPage }) {
     try {
       const res = await callAnthropic(`Convert the following ${srcLang} code to ${tgtLang}. Return only the converted code, no explanation, no markdown fences.\n\n${src}`);
       setOut(res);
-    } catch { setErr('Conversion failed. Please try again.'); }
+    } catch (e) { setErr(e.message || 'Conversion failed. Please try again.'); }
     finally { setLoading(false); }
   };
 
