@@ -23,7 +23,7 @@
 <script type="text/babel">
 const { useState, useRef, useEffect } = React;
 
-const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE'; // 🔑 Paste your key here (never share it!)
+const ANTHROPIC_API_KEY = 'YOUR_ANTHROPIC_API_KEY_HERE'; // 🔑 Paste your Anthropic key here (never share it!)
 
 const languages = [
   'Python','JavaScript','TypeScript','Java','C++','C#','C','Go',
@@ -53,7 +53,7 @@ function fmtMs(ms) {
 
 // ── claude call ───────────────────────────────────────────────────────────────
 async function callGemini(prompt) {
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${AIzaSyDeyINT8dCHc_GOYyQhrrxdfQx6ZF-p2yo}`, {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${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}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -165,7 +165,7 @@ function AppPage({ trialMs, subscribed, setPage }) {
     if (!src.trim()) { setErr('Please enter some code to convert.'); return; }
     setLoading(true); setErr(''); setOut('');
     try {
-      const res = await callGemini(`Convert the following ${srcLang} code to ${tgtLang}. Return only the converted code, no explanation, no markdown fences.\n\n${src}`);
+      const res = await callAnthropic(`Convert the following ${srcLang} code to ${tgtLang}. Return only the converted code, no explanation, no markdown fences.\n\n${src}`);
       setOut(res);
     } catch { setErr('Conversion failed. Please try again.'); }
     finally { setLoading(false); }
