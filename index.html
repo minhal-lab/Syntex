@@ -22,9 +22,7 @@
 <script type="text/babel">
 const { useState, useRef, useEffect } = React;
 
-// ── ONLY CHANGE THIS LINE ────────────────────────────────────────────────────
-const ANTHROPIC_API_KEY = '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';
-// ────────────────────────────────────────────────────────────────────────────
+// API key is stored server-side in Vercel environment variables
 
 const languages = [
   'Python','JavaScript','TypeScript','Java','C++','C#','C','Go',
@@ -41,24 +39,14 @@ const PLANS = [
 
 // ── API CALL ─────────────────────────────────────────────────────────────────
 async function callAnthropic(prompt) {
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  const r = await fetch('/api/convert', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }]
-    })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
   });
   const d = await r.json();
-  if (d.error) throw new Error(d.error.message || 'API error');
-  if (!r.ok) throw new Error(`API returned ${r.status}`);
-  return d.content?.[0]?.text || '';
+  if (d.error) throw new Error(d.error);
+  return d.text || '';
 }
 
 // ── TRIAL HELPERS ─────────────────────────────────────────────────────────────
