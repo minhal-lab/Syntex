@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Syntex – Code Language Converter</title>
+  <title>Lang Switch – Code Language Converter</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -54,7 +54,7 @@ async function callAnthropic(prompt) {
 
 // ── TRIAL HELPERS ─────────────────────────────────────────────────────────────
 function getTrialMs() {
-  const key = 'syntex_trial_start';
+  const key = 'langswitch_trial_start';
   let s = localStorage.getItem(key);
   if (!s) { s = Date.now().toString(); localStorage.setItem(key, s); }
   const left = 7 * 24 * 60 * 60 * 1000 - (Date.now() - parseInt(s));
@@ -85,13 +85,13 @@ function App() {
   const [page, setPage] = useState('app');
   const [trialMs, setTrialMs] = useState(getTrialMs());
   const trialActive = trialMs > 0;
-  const subscribed = localStorage.getItem('syntex_subscribed') === 'true';
+  const subscribed = localStorage.getItem('langswitch_subscribed') === 'true';
   const canUse = subscribed || trialActive;
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.get('payment') === 'success') {
-      localStorage.setItem('syntex_subscribed', 'true');
+      localStorage.setItem('langswitch_subscribed', 'true');
       window.history.replaceState({}, '', '/');
     }
     if (!trialActive) return;
@@ -119,7 +119,7 @@ function Nav({ page, setPage, trialMs, subscribed, canUse }) {
         <div style={{ width:'28px', height:'28px', background:'#111', borderRadius:'6px', display:'flex', alignItems:'center', justifyContent:'center' }}>
           <ZapIcon size={14} color="#fff" fill="#fff"/>
         </div>
-        <span style={{ fontWeight:600, fontSize:'15px', letterSpacing:'-0.3px' }}>Syntex</span>
+        <span style={{ fontWeight:600, fontSize:'15px', letterSpacing:'-0.3px' }}>Lang Switch</span>
       </div>
       <div style={{ display:'flex', gap:'16px', alignItems:'center' }}>
         {canUse && !subscribed && (
@@ -282,7 +282,7 @@ function PricingPage({ setPage }) {
       </div>
       <div style={{ marginTop:'32px', background:'#fff', border:'1px solid #e5e5e5', borderRadius:'10px', padding:'18px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div>
-          <p style={{ margin:'0 0 2px', fontWeight:600, fontSize:'14px' }}>🎁 Free 3-day trial</p>
+          <p style={{ margin:'0 0 2px', fontWeight:600, fontSize:'14px' }}>🎁 Free 7-day trial</p>
           <p style={{ margin:0, fontSize:'13px', color:'#888' }}>Try all features free — no credit card needed.</p>
         </div>
         <button onClick={() => setPage('app')} style={{ padding:'8px 18px', background:'#f5f5f5', border:'1px solid #e5e5e5', borderRadius:'7px', fontSize:'13px', fontWeight:500, cursor:'pointer', whiteSpace:'nowrap' }}>
