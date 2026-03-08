@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Syntex – Code Language Converter</title>
+  <title>Lang Switch – Code Language Converter</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -22,9 +22,7 @@
 <script type="text/babel">
 const { useState, useRef, useEffect } = React;
 
-// ── ONLY CHANGE THIS LINE ────────────────────────────────────────────────────
-const ANTHROPIC_API_KEY = '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';
-// ────────────────────────────────────────────────────────────────────────────
+// API key is stored server-side in Vercel environment variables
 
 const languages = [
   'Python','JavaScript','TypeScript','Java','C++','C#','C','Go',
@@ -34,37 +32,32 @@ const languages = [
 ];
 
 const PLANS = [
-  { id:'weekly',  label:'Weekly',  price:'$5',   period:'/week',  link:'https://your-gumroad-link/weekly',  highlight:false, perks:['Unlimited conversions','All 25 languages','Copy to clipboard','Email support'] },
-  { id:'monthly', label:'Monthly', price:'$35',  period:'/month', link:'https://your-gumroad-link/monthly', highlight:true,  perks:['Everything in Weekly','Priority support','Early access to features','Usage analytics'] },
-  { id:'yearly',  label:'Yearly',  price:'$100', period:'/year',  link:'https://your-gumroad-link/yearly',  highlight:false, perks:['Everything in Monthly','Best value – save 76%','Dedicated support','API access (coming soon)'] },
+  { id:'monthly', label:'Monthly', price:'$15',  period:'/month', link:'https://wwww.langswitch.net', highlight:true,  perks:['Unlimited conversions','All 25 languages','Copy to clipboard','Priority support'] },
+  { id:'yearly',  label:'Yearly',  price:'$120', period:'/year',  link:'https://wwwww.langswitch.net',  highlight:false, perks:['Everything in Monthly','Best value – save 33%','Dedicated support','API access (coming soon)'] },
 ];
 
 // ── API CALL ─────────────────────────────────────────────────────────────────
 async function callAnthropic(prompt) {
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  const r = await fetch('/api/convert', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }]
-    })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
   });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.error || `API returned ${r.status}`);
+  }
   const d = await r.json();
-  return d.content?.[0]?.text || '';
+  if (d.error) throw new Error(d.error);
+  return d.text || '';
 }
 
 // ── TRIAL HELPERS ─────────────────────────────────────────────────────────────
 function getTrialMs() {
-  const key = 'syntex_trial_start';
+  const key = 'langswitch_trial_start';
   let s = localStorage.getItem(key);
   if (!s) { s = Date.now().toString(); localStorage.setItem(key, s); }
-  const left = 3 * 24 * 60 * 60 * 1000 - (Date.now() - parseInt(s));
+  const left = 7 * 24 * 60 * 60 * 1000 - (Date.now() - parseInt(s));
   return left > 0 ? left : 0;
 }
 function fmtMs(ms) {
@@ -92,13 +85,13 @@ function App() {
   const [page, setPage] = useState('app');
   const [trialMs, setTrialMs] = useState(getTrialMs());
   const trialActive = trialMs > 0;
-  const subscribed = localStorage.getItem('syntex_subscribed') === 'true';
+  const subscribed = localStorage.getItem('langswitch_subscribed') === 'true';
   const canUse = subscribed || trialActive;
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.get('payment') === 'success') {
-      localStorage.setItem('syntex_subscribed', 'true');
+      localStorage.setItem('langswitch_subscribed', 'true');
       window.history.replaceState({}, '', '/');
     }
     if (!trialActive) return;
@@ -126,7 +119,7 @@ function Nav({ page, setPage, trialMs, subscribed, canUse }) {
         <div style={{ width:'28px', height:'28px', background:'#111', borderRadius:'6px', display:'flex', alignItems:'center', justifyContent:'center' }}>
           <ZapIcon size={14} color="#fff" fill="#fff"/>
         </div>
-        <span style={{ fontWeight:600, fontSize:'15px', letterSpacing:'-0.3px' }}>Syntex</span>
+        <span style={{ fontWeight:600, fontSize:'15px', letterSpacing:'-0.3px' }}>Lang Switch</span>
       </div>
       <div style={{ display:'flex', gap:'16px', alignItems:'center' }}>
         {canUse && !subscribed && (
@@ -156,8 +149,9 @@ function LockedPage({ setPage }) {
         <LockIcon size={24}/>
       </div>
       <h2 style={{ fontSize:'26px', fontWeight:700, letterSpacing:'-0.5px', margin:'0 0 10px' }}>Your free trial has ended</h2>
-      <p style={{ fontSize:'15px', color:'#666', maxWidth:'380px', lineHeight:1.6, margin:'0 0 28px' }}>You've used your 3-day free trial. Upgrade to keep converting code across 25 languages.</p>
+      <p style={{ fontSize:'15px', color:'#666', maxWidth:'380px', lineHeight:1.6, margin:'0 0 28px' }}>You've used your 7-day free trial. Upgrade to keep converting code across 25 languages.</p>
       <button onClick={() => setPage('pricing')} style={{ padding:'10px 28px', background:'#111', color:'#fff', borderRadius:'8px', fontSize:'14px', fontWeight:600, border:'none', cursor:'pointer' }}>View plans →</button>
+      <button onClick={() => { localStorage.setItem('langswitch_subscribed','true'); window.location.reload(); }} style={{ padding:'8px 20px', background:'transparent', color:'#666', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1px solid #e5e5e5', cursor:'pointer', marginTop:'12px' }}>I already purchased →</button>
     </div>
   );
 }
@@ -178,7 +172,7 @@ function AppPage({ trialMs, subscribed, setPage }) {
     try {
       const res = await callAnthropic(`Convert the following ${srcLang} code to ${tgtLang}. Return only the converted code, no explanation, no markdown fences.\n\n${src}`);
       setOut(res);
-    } catch { setErr('Conversion failed. Please try again.'); }
+    } catch (e) { setErr(e.message || 'Conversion failed. Please try again.'); }
     finally { setLoading(false); }
   };
 
@@ -259,9 +253,9 @@ function PricingPage({ setPage }) {
     <div style={{ maxWidth:'860px', margin:'0 auto', padding:'64px 24px' }}>
       <div style={{ textAlign:'center', marginBottom:'48px' }}>
         <h2 style={{ fontSize:'34px', fontWeight:700, letterSpacing:'-1px', margin:'0 0 10px' }}>Simple, honest pricing</h2>
-        <p style={{ fontSize:'15px', color:'#666' }}>Start free for 3 days. No credit card required.</p>
+        <p style={{ fontSize:'15px', color:'#666' }}>Start free for 7 days. No credit card required.</p>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px', alignItems:'start' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:'16px', alignItems:'start' }}>
         {PLANS.map(plan => (
           <div key={plan.id} style={{ background:'#fff', border: plan.highlight?'2px solid #111':'1px solid #e5e5e5', borderRadius:'12px', padding:'28px 24px', position:'relative', boxShadow: plan.highlight?'0 4px 20px rgba(0,0,0,0.08)':'none' }}>
             {plan.highlight && (
@@ -289,11 +283,16 @@ function PricingPage({ setPage }) {
       </div>
       <div style={{ marginTop:'32px', background:'#fff', border:'1px solid #e5e5e5', borderRadius:'10px', padding:'18px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div>
-          <p style={{ margin:'0 0 2px', fontWeight:600, fontSize:'14px' }}>🎁 Free 3-day trial</p>
+          <p style={{ margin:'0 0 2px', fontWeight:600, fontSize:'14px' }}>🎁 Free 7-day trial</p>
           <p style={{ margin:0, fontSize:'13px', color:'#888' }}>Try all features free — no credit card needed.</p>
         </div>
         <button onClick={() => setPage('app')} style={{ padding:'8px 18px', background:'#f5f5f5', border:'1px solid #e5e5e5', borderRadius:'7px', fontSize:'13px', fontWeight:500, cursor:'pointer', whiteSpace:'nowrap' }}>
           Continue trial →
+        </button>
+      </div>
+      <div style={{ marginTop:'16px', textAlign:'center' }}>
+        <button onClick={() => { localStorage.setItem('langswitch_subscribed','true'); window.location.reload(); }} style={{ padding:'8px 20px', background:'transparent', color:'#666', fontSize:'13px', fontWeight:500, border:'none', cursor:'pointer', textDecoration:'underline' }}>
+          I already purchased →
         </button>
       </div>
     </div>
