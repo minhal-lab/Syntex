@@ -28,7 +28,7 @@ private struct CustomerCenterContent: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
 
     var body: some View {
-        if #available(iOS 16.0, *) {
+        if #available(iOS 15.0, *) {
             CustomerCenterView_RC()
         } else {
             CustomerCenterFallback()
@@ -38,17 +38,28 @@ private struct CustomerCenterContent: View {
 
 // MARK: - RevenueCat Customer Center (iOS 16+)
 
-@available(iOS 16.0, *)
+@available(iOS 15.0, *)
 private struct CustomerCenterView_RC: View {
 
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
 
     var body: some View {
         RevenueCatUI.CustomerCenterView()
-            .onCustomerCenterError { error in
+            .onCustomerCenterRestoreCompleted { customerInfo in
+                Task { @MainActor in
+                    subscriptionManager.customerInfo = customerInfo
+                }
+            }
+            .onCustomerCenterRestoreFailed { error in
                 Task { @MainActor in
                     subscriptionManager.error = error.localizedDescription
                 }
+            }
+            .onCustomerCenterShowingManageSubscriptions {
+                // User tapped manage — system handles the redirect
+            }
+            .onCustomerCenterRefundRequestStarted { productID in
+                // Track refund request if needed
             }
     }
 }

@@ -8,8 +8,9 @@ struct LangSwitchApp: App {
         // Configure RevenueCat — do this as early as possible
         Purchases.logLevel = .debug  // Remove in production
         Purchases.configure(
-            with: .builder(withAPIKey: "test_zxyxYMOKeVMHATXOwrHCzepLsBZ")
-                .with(appUserID: nil)  // Anonymous — RevenueCat generates an ID
+            with: Configuration.Builder(withAPIKey: "test_zxyxYMOKeVMHATXOwrHCzepLsBZ")
+                .with(appUserID: nil)           // Anonymous — RevenueCat generates an ID
+                .with(storeKitVersion: .storeKit2)  // Use modern StoreKit 2
                 .build()
         )
     }

@@ -76,9 +76,8 @@ struct ContentView: View {
                         showPaywall = false
                     }
             }
-            .sheet(isPresented: $showCustomerCenter) {
-                CustomerCenterView()
-                    .environmentObject(subscriptionManager)
+            .presentCustomerCenter(isPresented: $showCustomerCenter) {
+                showCustomerCenter = false
             }
             .task {
                 await subscriptionManager.refresh()
