@@ -36,7 +36,7 @@ private struct CustomerCenterContent: View {
     }
 }
 
-// MARK: - RevenueCat Customer Center (iOS 16+)
+// MARK: - RevenueCat Customer Center (iOS 15+)
 
 @available(iOS 15.0, *)
 private struct CustomerCenterView_RC: View {
