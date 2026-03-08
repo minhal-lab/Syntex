@@ -7,6 +7,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #fafafa; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #111; }
@@ -19,6 +23,21 @@
 </head>
 <body>
 <div id="root"></div>
+<script>
+// ── FIREBASE CONFIG ─────────────────────────────────────────────────────────
+// TODO: Replace with your Firebase project config from Firebase Console
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+</script>
 <script type="text/babel">
 const { useState, useRef, useEffect } = React;
 
@@ -53,16 +72,24 @@ async function callAnthropic(prompt) {
 }
 
 // ── TRIAL HELPERS ─────────────────────────────────────────────────────────────
-function getTrialMs() {
-  const key = 'langswitch_trial_start';
-  let s = localStorage.getItem(key);
-  if (!s) { s = Date.now().toString(); localStorage.setItem(key, s); }
-  const left = 7 * 24 * 60 * 60 * 1000 - (Date.now() - parseInt(s));
-  return left > 0 ? left : 0;
-}
 function fmtMs(ms) {
   const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000);
   return d > 0 ? `${d}d ${h}h left` : `${h}h ${m}m left`;
+}
+
+// Get or create user doc in Firestore, returns { trialStart, subscribed }
+async function getUserData(uid) {
+  const ref = db.collection('users').doc(uid);
+  const snap = await ref.get();
+  if (snap.exists) return snap.data();
+  const data = { trialStart: Date.now(), subscribed: false };
+  await ref.set(data);
+  return data;
+}
+
+function getTrialMsFromStart(trialStart) {
+  const left = 7 * 24 * 60 * 60 * 1000 - (Date.now() - trialStart);
+  return left > 0 ? left : 0;
 }
 
 // ── ICONS ─────────────────────────────────────────────────────────────────────
@@ -80,30 +107,139 @@ const CheckIcon  = ({size,color})      => <Icon size={size} color={color||'#22c5
 const LockIcon   = ({size})            => <Icon size={size} color="#999" d="M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2zM7 11V7a5 5 0 0110 0v4"/>;
 const SparkIcon  = ({size})            => <Icon size={size} color="#92400e" d="M5 3l1.5 4.5L10 9l-3.5 1.5L5 15l-1.5-4.5L0 9l3.5-1.5L5 3zM19 1l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z"/>;
 
+// ── AUTH HELPERS ──────────────────────────────────────────────────────────────
+async function signInWithGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  return auth.signInWithPopup(provider);
+}
+
+async function signInWithApple() {
+  const provider = new firebase.auth.OAuthProvider('apple.com');
+  provider.addScope('email');
+  provider.addScope('name');
+  return auth.signInWithPopup(provider);
+}
+
+// ── LOGIN PAGE ───────────────────────────────────────────────────────────────
+function LoginPage() {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const handleGoogle = async () => {
+    setLoading(true); setErr('');
+    try { await signInWithGoogle(); }
+    catch (e) { setErr(e.message); setLoading(false); }
+  };
+  const handleApple = async () => {
+    setLoading(true); setErr('');
+    try { await signInWithApple(); }
+    catch (e) { setErr(e.message); setLoading(false); }
+  };
+
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#fafafa' }}>
+      <div style={{ width:'100%', maxWidth:'400px', padding:'40px 32px', background:'#fff', border:'1px solid #e5e5e5', borderRadius:'16px', boxShadow:'0 2px 12px rgba(0,0,0,0.06)', textAlign:'center' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', marginBottom:'28px' }}>
+          <div style={{ width:'32px', height:'32px', background:'#111', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <ZapIcon size={16} color="#fff" fill="#fff"/>
+          </div>
+          <span style={{ fontWeight:700, fontSize:'18px', letterSpacing:'-0.3px' }}>Lang Switch</span>
+        </div>
+        <h2 style={{ fontSize:'22px', fontWeight:700, letterSpacing:'-0.5px', margin:'0 0 6px' }}>Welcome back</h2>
+        <p style={{ fontSize:'14px', color:'#666', margin:'0 0 28px' }}>Sign in to convert code across 25+ languages</p>
+
+        <button onClick={handleGoogle} disabled={loading}
+          style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', width:'100%', padding:'11px 16px', borderRadius:'8px', border:'1px solid #e5e5e5', background:'#fff', fontSize:'14px', fontWeight:500, cursor: loading?'not-allowed':'pointer', color:'#222', marginBottom:'10px' }}>
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 010-9.18l-7.98-6.19a24.003 24.003 0 000 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Continue with Google
+        </button>
+
+        <button onClick={handleApple} disabled={loading}
+          style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', width:'100%', padding:'11px 16px', borderRadius:'8px', border:'none', background:'#111', fontSize:'14px', fontWeight:500, cursor: loading?'not-allowed':'pointer', color:'#fff' }}>
+          <svg width="16" height="18" viewBox="0 0 17 20" fill="white"><path d="M13.545 10.239c-.022-2.234 1.823-3.306 1.907-3.358-.04-.073-1.498-2.164-3.823-2.164-1.628 0-2.929 1.005-3.709 1.005-.797 0-2.002-.98-3.301-.953C2.679 4.797.782 6.076.782 8.654c0 3.178 2.406 7.726 4.267 7.726.995-.022 1.734-.724 3.07-.724 1.322 0 2.002.724 3.07.702 1.32-.022 2.922-3.206 3.846-5.37-2.512-1.186-2.512-4.5.51-5.749zM11.138.895C11.855.02 12.336-.555 12.336-.555s-1.262.068-2.595 1.26C8.548 1.783 8.003 3.017 8.07 3.54c0 0 1.263-.14 3.068-2.645z"/></svg>
+          Continue with Apple
+        </button>
+
+        {err && <p style={{ fontSize:'12px', color:'#dc2626', marginTop:'14px' }}>{err}</p>}
+
+        <p style={{ fontSize:'11px', color:'#aaa', marginTop:'24px', lineHeight:1.5 }}>
+          By signing in you agree to our Terms of Service and Privacy Policy.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── LOADING SCREEN ──────────────────────────────────────────────────────────
+function LoadingScreen() {
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <Loader size={24} style={{ animation:'spin 1s linear infinite' }}/>
+    </div>
+  );
+}
+
 // ── APP ───────────────────────────────────────────────────────────────────────
 function App() {
+  const [user, setUser] = useState(undefined); // undefined = loading, null = not logged in
   const [page, setPage] = useState('app');
-  const [trialMs, setTrialMs] = useState(getTrialMs());
-  const trialActive = trialMs > 0;
-  const subscribed = localStorage.getItem('langswitch_subscribed') === 'true';
-  const canUse = subscribed || trialActive;
+  const [trialMs, setTrialMs] = useState(0);
+  const [subscribed, setSubscribed] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
+  // Listen to auth state
   useEffect(() => {
+    const unsub = auth.onAuthStateChanged(u => setUser(u || null));
+    return unsub;
+  }, []);
+
+  // Load user data from Firestore when logged in
+  useEffect(() => {
+    if (!user) { setDataLoaded(user === null); return; }
+    let cancelled = false;
+    getUserData(user.uid).then(data => {
+      if (cancelled) return;
+      setSubscribed(data.subscribed);
+      setTrialMs(getTrialMsFromStart(data.trialStart));
+      setDataLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // Handle payment success redirect
+  useEffect(() => {
+    if (!user) return;
     const p = new URLSearchParams(window.location.search);
     if (p.get('payment') === 'success') {
-      localStorage.setItem('langswitch_subscribed', 'true');
+      db.collection('users').doc(user.uid).update({ subscribed: true });
+      setSubscribed(true);
       window.history.replaceState({}, '', '/');
     }
-    if (!trialActive) return;
-    const t = setInterval(() => setTrialMs(getTrialMs()), 30000);
+  }, [user]);
+
+  // Trial countdown timer
+  useEffect(() => {
+    if (!user || subscribed || trialMs <= 0) return;
+    const t = setInterval(() => {
+      getUserData(user.uid).then(data => setTrialMs(getTrialMsFromStart(data.trialStart)));
+    }, 30000);
     return () => clearInterval(t);
-  }, []);
+  }, [user, subscribed, trialMs]);
+
+  // Show loading while checking auth
+  if (user === undefined || !dataLoaded) return <LoadingScreen />;
+
+  // Not logged in → login page
+  if (user === null) return <LoginPage />;
+
+  const trialActive = trialMs > 0;
+  const canUse = subscribed || trialActive;
 
   return (
     <div style={{ minHeight:'100vh' }}>
-      <Nav page={page} setPage={setPage} trialMs={trialMs} subscribed={subscribed} canUse={canUse}/>
+      <Nav page={page} setPage={setPage} trialMs={trialMs} subscribed={subscribed} canUse={canUse} user={user}/>
       {page === 'pricing'
-        ? <PricingPage setPage={setPage}/>
+        ? <PricingPage setPage={setPage} user={user}/>
         : canUse
           ? <AppPage trialMs={trialMs} subscribed={subscribed} setPage={setPage}/>
           : <LockedPage setPage={setPage}/>}
@@ -112,7 +248,16 @@ function App() {
 }
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
-function Nav({ page, setPage, trialMs, subscribed, canUse }) {
+function Nav({ page, setPage, trialMs, subscribed, canUse, user }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const h = e => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
   return (
     <nav style={{ background:'#fff', borderBottom:'1px solid #e5e5e5', padding:'0 32px', height:'56px', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:10 }}>
       <div style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer' }} onClick={() => setPage('app')}>
@@ -136,6 +281,28 @@ function Nav({ page, setPage, trialMs, subscribed, canUse }) {
         <button onClick={() => setPage('pricing')} style={{ padding:'6px 14px', background:'#111', color:'#fff', borderRadius:'6px', fontSize:'13px', fontWeight:500, border:'none', cursor:'pointer' }}>
           {subscribed ? 'Manage plan' : 'Upgrade'}
         </button>
+
+        {/* User avatar & dropdown */}
+        <div ref={menuRef} style={{ position:'relative' }}>
+          <div onClick={() => setMenuOpen(!menuOpen)} style={{ width:'30px', height:'30px', borderRadius:'50%', overflow:'hidden', cursor:'pointer', border:'2px solid #e5e5e5', display:'flex', alignItems:'center', justifyContent:'center', background:'#f5f5f5' }}>
+            {user.photoURL
+              ? <img src={user.photoURL} width="30" height="30" style={{ borderRadius:'50%' }} referrerPolicy="no-referrer"/>
+              : <span style={{ fontSize:'13px', fontWeight:600, color:'#666' }}>{(user.displayName || user.email || '?')[0].toUpperCase()}</span>
+            }
+          </div>
+          {menuOpen && (
+            <div style={{ position:'absolute', right:0, top:'calc(100% + 6px)', width:'200px', background:'#fff', border:'1px solid #e5e5e5', borderRadius:'10px', boxShadow:'0 4px 16px rgba(0,0,0,0.1)', overflow:'hidden', zIndex:100 }}>
+              <div style={{ padding:'12px 14px', borderBottom:'1px solid #f0f0f0' }}>
+                <p style={{ margin:0, fontSize:'13px', fontWeight:600, color:'#111' }}>{user.displayName || 'User'}</p>
+                <p style={{ margin:'2px 0 0', fontSize:'11px', color:'#999', overflow:'hidden', textOverflow:'ellipsis' }}>{user.email}</p>
+              </div>
+              <button onClick={() => { auth.signOut(); setMenuOpen(false); }}
+                style={{ width:'100%', textAlign:'left', padding:'10px 14px', fontSize:'13px', color:'#dc2626', background:'transparent', border:'none', cursor:'pointer', fontWeight:500 }}>
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </nav>
   );
@@ -151,7 +318,6 @@ function LockedPage({ setPage }) {
       <h2 style={{ fontSize:'26px', fontWeight:700, letterSpacing:'-0.5px', margin:'0 0 10px' }}>Your free trial has ended</h2>
       <p style={{ fontSize:'15px', color:'#666', maxWidth:'380px', lineHeight:1.6, margin:'0 0 28px' }}>You've used your 7-day free trial. Upgrade to keep converting code across 25 languages.</p>
       <button onClick={() => setPage('pricing')} style={{ padding:'10px 28px', background:'#111', color:'#fff', borderRadius:'8px', fontSize:'14px', fontWeight:600, border:'none', cursor:'pointer' }}>View plans →</button>
-      <button onClick={() => { localStorage.setItem('langswitch_subscribed','true'); window.location.reload(); }} style={{ padding:'8px 20px', background:'transparent', color:'#666', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1px solid #e5e5e5', cursor:'pointer', marginTop:'12px' }}>I already purchased →</button>
     </div>
   );
 }
@@ -248,7 +414,7 @@ function AppPage({ trialMs, subscribed, setPage }) {
 }
 
 // ── PRICING ───────────────────────────────────────────────────────────────────
-function PricingPage({ setPage }) {
+function PricingPage({ setPage, user }) {
   return (
     <div style={{ maxWidth:'860px', margin:'0 auto', padding:'64px 24px' }}>
       <div style={{ textAlign:'center', marginBottom:'48px' }}>
@@ -290,11 +456,9 @@ function PricingPage({ setPage }) {
           Continue trial →
         </button>
       </div>
-      <div style={{ marginTop:'16px', textAlign:'center' }}>
-        <button onClick={() => { localStorage.setItem('langswitch_subscribed','true'); window.location.reload(); }} style={{ padding:'8px 20px', background:'transparent', color:'#666', fontSize:'13px', fontWeight:500, border:'none', cursor:'pointer', textDecoration:'underline' }}>
-          I already purchased →
-        </button>
-      </div>
+      <p style={{ textAlign:'center', fontSize:'12px', color:'#aaa', marginTop:'16px' }}>
+        Signed in as {user?.email || 'unknown'}
+      </p>
     </div>
   );
 }
